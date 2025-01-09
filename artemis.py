@@ -13,6 +13,7 @@ except:
   pass
 
 tenant_id = os.getenv('TENANT_ID')
+subscription_id = os.getenv('SUBSCRIPTION_ID')
 
 # Initialize InteractiveBrowserCredential
 credential = InteractiveBrowserCredential(tenant_id=tenant_id)
@@ -84,6 +85,19 @@ users_sheet = workbook['Users']
 groups_sheet = workbook['Groups']
 
 # Fetch and process users
+def fetch_subscriptions_v2():
+  url = "https://management.azure.com/subscriptions?api-version=2021-04-01"
+  scope = "https://management.azure.com/.default"
+  subscriptions_arm_api = make_management_api_call(url, scope)
+  return [
+    {
+      'subscriptionId': subscription_int['subscriptionId'],
+      'displayName': subscription_int['displayName'],
+      'state': subscription_int['state']
+    }
+    for subscription_int in subscriptions_arm_api
+  ]
+
 def fetch_users():
   url = 'https://graph.microsoft.com/v1.0/users'
   scope = "https://graph.microsoft.com/.default"
@@ -126,14 +140,19 @@ def fetch_groups():
   ]
 
 # Fetch resources from ARM API
-def fetch_resources_from_arm_api():
-  access_token = get_access_token()
-  if not access_token:
-    print("[ERROR]: Unable to authenticate.")
-    return []
-
-  url = f"https://management.azure.com/subscriptions/{subscription_id}/resources?api-version=2021-04-01"
-  return make_management_api_call(url, access_token)
+def fetch_resources_v2(subscription):
+  scope = "https://management.azure.com/.default"
+  url = f"https://management.azure.com/subscriptions/{subscription}/resources?api-version=2021-04-01"
+  resources = make_management_api_call(url, scope)
+  return [
+    [
+      resource['id'],
+      resource['name'],
+      resource['type'],
+      resource['location']
+    ]
+    for resource in resources
+  ]
 
 # Append data to Excel sheets
 def append_data_to_sheet(sheet, data):
