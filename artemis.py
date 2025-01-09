@@ -165,6 +165,8 @@ if __name__ == "__main__":
   workbook = openpyxl.load_workbook('./source/template_entraid.xlsx')
   users_sheet = workbook['Users']
   groups_sheet = workbook['Groups']
+  licenses_sheet = workbook['Licenses']
+  resources_sheet = workbook['Resources']
 
   # Process users
   users_data = fetch_users()
