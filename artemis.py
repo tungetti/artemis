@@ -4,15 +4,16 @@ import requests
 import openpyxl
 import os
 from dotenv import load_dotenv
+import sqlite3
 import sys
 
 # Load environment variables
-try:
-  load_dotenv()
-except:
-  pass
 
-tenant_id = os.getenv('TENANT_ID')
+load_dotenv()
+
+db_file = os.getenv('DB_NAME')
+table_name = os.getenv('id_to_prodnames')
+tenant_id = "a64f8ae4-4742-4b8a-b36f-76e53fc527a2"
 subscription_id = os.getenv('SUBSCRIPTION_ID')
 
 # Initialize InteractiveBrowserCredential
@@ -76,8 +77,6 @@ def fetch_groups():
   scope = "https://graph.microsoft.com/.default"
   groups = make_graph_call(url, scope)
 
-  print(groups)
-
   for group in groups:
     group_id = group['id']
     members_url = f'https://graph.microsoft.com/v1.0/groups/{group_id}/members'
@@ -95,6 +94,22 @@ def fetch_groups():
     ]
     for group in groups
   ]
+
+def fetch_licenses():
+  url = 'https://graph.microsoft.com/v1.0/subscribedSkus'
+  scope = "https://graph.microsoft.com/.default"
+  licenses = make_graph_call(url, scope)
+  return licenses
+  # [
+  #     [
+  #       user['id'],
+  #       user['displayName'],
+  #       user.get('jobTitle', 'N/A'),
+  #       user['userPrincipalName'],
+  #       user.get('mail', 'N/A')
+  #     ]
+  #     for user in users
+  # ]
 
 # AZURE RESOURCES
 
@@ -158,23 +173,51 @@ def append_data_to_sheet(sheet, data):
   for row in data:
     sheet.append(row)
 
+# Fetch from DB
+def fetch_product_display_name(guid):
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    
+    # Query to fetch the Product_Display_Name based on GUID
+    query = f"SELECT Product_Display_Name FROM {table_name} WHERE GUID = ?"
+    cursor.execute(query, (guid,))
+    
+    # Fetch the result
+    result = cursor.fetchone()
+    
+    # Close the connection
+    conn.close()
+    
+    if result:
+        return result[0]
+    else:
+        return None
+
 # Main logic
 if __name__ == "__main__":
 
   # Workbook setup
   workbook = openpyxl.load_workbook('./source/template_entraid.xlsx')
+  # overview_sheet = workbook['Overview']
   users_sheet = workbook['Users']
   groups_sheet = workbook['Groups']
-  licenses_sheet = workbook['Licenses']
-  resources_sheet = workbook['Resources']
+  # licenses_sheet = workbook['Licenses']
+  # resources_sheet = workbook['Resources']
 
   # Process users
-  users_data = fetch_users()
-  append_data_to_sheet(users_sheet, users_data)
+  # users_data = fetch_users()
+  # append_data_to_sheet(users_sheet, users_data)
+  # total_users = len(users_data)
 
   # Process groups
-  groups_data = fetch_groups()
-  append_data_to_sheet(groups_sheet, groups_data)
+  # groups_data = fetch_groups()
+  # append_data_to_sheet(groups_sheet, groups_data)
+  # total_groups = len(groups_data)
+
+  # Process Licenses
+  licenses_data = fetch_licenses()
+  print(licenses_data)
 
   # Save workbook
   workbook.save("my_excel_file_user_auth.xlsx")
