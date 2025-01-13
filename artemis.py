@@ -99,17 +99,20 @@ def fetch_licenses():
   url = 'https://graph.microsoft.com/v1.0/subscribedSkus'
   scope = "https://graph.microsoft.com/.default"
   licenses = make_graph_call(url, scope)
-  return licenses
-  # [
-  #     [
-  #       user['id'],
-  #       user['displayName'],
-  #       user.get('jobTitle', 'N/A'),
-  #       user['userPrincipalName'],
-  #       user.get('mail', 'N/A')
-  #     ]
-  #     for user in users
-  # ]
+
+  for license in licenses:
+     license['skuId'] = fetch_product_display_name(license['skuId'])
+  
+  return [
+      [
+        license['accountName'],
+        license['skuId'],
+        license['appliesTo'],
+        license['prepaidUnits']['enabled'],
+        license['consumedUnits']
+      ]
+      for license in licenses
+  ]
 
 # AZURE RESOURCES
 
@@ -175,7 +178,9 @@ def append_data_to_sheet(sheet, data):
 
 # Fetch from DB
 def fetch_product_display_name(guid):
-    # Connect to the SQLite database
+    db_file = "./artemis.db"
+    table_name = 'id_to_prodnames'
+
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     
@@ -202,22 +207,23 @@ if __name__ == "__main__":
   # overview_sheet = workbook['Overview']
   users_sheet = workbook['Users']
   groups_sheet = workbook['Groups']
-  # licenses_sheet = workbook['Licenses']
-  # resources_sheet = workbook['Resources']
+  licenses_sheet = workbook['Licenses']
+  resources_sheet = workbook['Resources']
 
   # Process users
-  # users_data = fetch_users()
-  # append_data_to_sheet(users_sheet, users_data)
-  # total_users = len(users_data)
+  users_data = fetch_users()
+  append_data_to_sheet(users_sheet, users_data)
+  total_users = len(users_data)
 
   # Process groups
-  # groups_data = fetch_groups()
-  # append_data_to_sheet(groups_sheet, groups_data)
-  # total_groups = len(groups_data)
+  groups_data = fetch_groups()
+  append_data_to_sheet(groups_sheet, groups_data)
+  total_groups = len(groups_data)
 
   # Process Licenses
   licenses_data = fetch_licenses()
-  print(licenses_data)
+  append_data_to_sheet(licenses_sheet, licenses_data)
+  total_groups = len(groups_data)
 
   # Save workbook
   workbook.save("my_excel_file_user_auth.xlsx")
