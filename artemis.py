@@ -5,7 +5,7 @@ import openpyxl
 import os
 from dotenv import load_dotenv
 import sqlite3
-import sys
+from datetime import datetime
 
 # Load environment variables
 
@@ -199,12 +199,36 @@ def fetch_product_display_name(guid):
     else:
         return None
 
+def _get_time():
+  current_time = datetime.now()
+  format_date = current_time.strftime("%d%m%Y-%H%M")
+  return format_date
+
+
+def create_title_workbook(tenant_name):
+  current_time = _get_time()
+  return f"{tenant_name}-{current_time}"
+
+def fetch_tenant_properties_v2(tenant_id):
+    url = f"https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{tenant_id}')"
+    scope = "https://graph.microsoft.com/.default"
+    access_token = get_access_token(scope)
+
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    response = requests.get(url=url, headers=headers)
+    response.raise_for_status()
+    graph_result = response.json()
+
+    return graph_result
+
 # Main logic
 if __name__ == "__main__":
 
   # Workbook setup
-  workbook = openpyxl.load_workbook('./source/template_entraid.xlsx')
+  workbook = openpyxl.load_workbook('./source/the_googd_one_v1.xlsx')
   # overview_sheet = workbook['Overview']
+  overview_sheet = workbook['Overview']
   users_sheet = workbook['Users']
   groups_sheet = workbook['Groups']
   licenses_sheet = workbook['Licenses']
@@ -225,6 +249,32 @@ if __name__ == "__main__":
   append_data_to_sheet(licenses_sheet, licenses_data)
   total_groups = len(groups_data)
 
-  # Save workbook
-  workbook.save("my_excel_file_user_auth.xlsx")
+  # Fetch Resources
+  subscriptions_data = fetch_subscriptions_v2()
 
+  resources_data = []
+
+  for i in range(len(subscriptions_data)):
+    resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'])
+    for resource in resources:
+      resource.append(subscriptions_data[i]['displayName'])
+      resources_data.append(resource)
+    
+  append_data_to_sheet(resources_sheet, resources_data)
+
+  # Fetch Tenant Informations
+  tenant_data = fetch_tenant_properties_v2(tenant_id)
+  sheet = workbook['Overview']
+  sheet['C4'] = tenant_data['tenantId']
+  sheet['C5'] = tenant_data['displayName']
+  sheet['C6'] = tenant_data['federationBrandName']
+  sheet['C7'] = tenant_data['defaultDomainName']
+
+  sheet['C9'] = total_users
+  sheet['C10'] = total_groups
+
+  # Build output file name
+  wb_title = create_title_workbook(tenant_data['displayName'])
+
+  # Save workbook
+  workbook.save(f"{wb_title}.xlsx")
