@@ -3,3 +3,5 @@ azure-mgmt-resource
 requests
 openpyxl
 python-dotenv
+colorama
+click
