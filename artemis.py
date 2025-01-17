@@ -12,9 +12,6 @@ import click
 db_file = 'artemis.db'
 table_name = 'id_to_prodnames'
 
-# Initialize InteractiveBrowserCredential
-# credential = InteractiveBrowserCredential(tenant_id=tenant_id)
-
 # Function to acquire tokens - TESTING CREDENTIAL AS INPUT
 def get_access_token(credential, scope):
   try:
@@ -206,8 +203,8 @@ def create_title_workbook(tenant_name):
   current_time = _get_time()
   return f"{tenant_name}-{current_time}"
 
-def fetch_tenant_properties_v2(tenant_id, credential):
-    url = f"https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{tenant_id}')"
+def fetch_tenant_properties_v2(tenantid, credential):
+    url = f"https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{tenantid}')"
     scope = "https://graph.microsoft.com/.default"
     access_token = get_access_token(credential, scope)
 
@@ -232,15 +229,15 @@ TYPES = {
 }
 
 @click.command(help='Initialize my_command')
-@click.option("-t", "--mode", type=click.Choice(TYPES.keys()))
-@click.option("-p", "--savePath", prompt="File Path", help="Save file path in the filesystem")
+@click.option("-t", "--mode", type=click.Choice(TYPES.keys()), default="full")
+@click.option("-p", "--savePath", prompt="File Path", default=".", help="Save file path in the filesystem")
 @click.option("--tenantId", prompt="Tenant ID", help="Tenant ID that requires the assessment")
 
 def run(mode, tenantid, savepath):
   # Initialize InteractiveBrowserCredential
-  tenant_id=tenantid
-  credential = InteractiveBrowserCredential(tenant_id)
-  tenant_data = fetch_tenant_properties_v2(tenant_id)
+  global credential
+  credential = InteractiveBrowserCredential(tenant_id=tenantid)
+  tenant_data = fetch_tenant_properties_v2(tenantid, credential)
 
   # Workbook setup
   workbook = openpyxl.load_workbook('./source/the_googd_one_v1.xlsx')
@@ -251,7 +248,7 @@ def run(mode, tenantid, savepath):
   licenses_sheet = workbook['Licenses']
   resources_sheet = workbook['Resources']
 
-  if mode == "f":
+  if mode == "full":
     # Process users
     users_data = fetch_users(credential)
     append_data_to_sheet(users_sheet, users_data)
@@ -281,7 +278,7 @@ def run(mode, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
+    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
@@ -291,7 +288,7 @@ def run(mode, tenantid, savepath):
     sheet['C9'] = total_users
     sheet['C10'] = total_groups
 
-  elif mode == "eio":
+  elif mode == "entraIdOnly":
     # Fetch Resources
     subscriptions_data = fetch_subscriptions_v2(credential)
 
@@ -306,7 +303,7 @@ def run(mode, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
+    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
@@ -315,7 +312,7 @@ def run(mode, tenantid, savepath):
 
     wb_title = create_title_workbook(tenant_data['displayName'])
 
-  elif mode == "ro":
+  elif mode == "resourcesOnly":
     # Fetch Resources
     subscriptions_data = fetch_subscriptions_v2(credential)
 
@@ -330,7 +327,7 @@ def run(mode, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
+    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
