@@ -13,10 +13,10 @@ db_file = 'artemis.db'
 table_name = 'id_to_prodnames'
 
 # Initialize InteractiveBrowserCredential
-credential = InteractiveBrowserCredential(tenant_id=tenant_id)
+# credential = InteractiveBrowserCredential(tenant_id=tenant_id)
 
-# Function to acquire tokens
-def get_access_token(scope):
+# Function to acquire tokens - TESTING CREDENTIAL AS INPUT
+def get_access_token(credential, scope):
   try:
     token = credential.get_token(scope)
     return token.token
@@ -27,8 +27,8 @@ def get_access_token(scope):
 # ENTRAID
 
 # Function to make Graph API calls
-def make_graph_call(url, scope, pagination=True):
-  access_token = get_access_token(scope)
+def make_graph_call(url, scope, credential, pagination=True):
+  access_token = get_access_token(credential, scope)
   if not access_token:
     print("[ERROR]: No access token available.")
     return []
@@ -52,10 +52,10 @@ def make_graph_call(url, scope, pagination=True):
 
   return graph_results
 
-def fetch_users():
+def fetch_users(credential):
   url = 'https://graph.microsoft.com/v1.0/users'
   scope = "https://graph.microsoft.com/.default"
-  users = make_graph_call(url, scope)
+  users = make_graph_call(url, scope, credential)
   return [
       [
         user['id'],
@@ -68,15 +68,16 @@ def fetch_users():
   ]
 
 # Fetch and process groups
-def fetch_groups():
+def fetch_groups(credential):
+  cred_val = credential
   url = 'https://graph.microsoft.com/v1.0/groups'
   scope = "https://graph.microsoft.com/.default"
-  groups = make_graph_call(url, scope)
+  groups = make_graph_call(url, scope, credential=cred_val)
 
   for group in groups:
     group_id = group['id']
     members_url = f'https://graph.microsoft.com/v1.0/groups/{group_id}/members'
-    members = make_graph_call(url=members_url, scope=scope)
+    members = make_graph_call(url=members_url, scope=scope, credential=cred_val)
     group['membersList'] = ", ".join(member['displayName'] for member in members)
 
   return [
@@ -91,10 +92,10 @@ def fetch_groups():
     for group in groups
   ]
 
-def fetch_licenses():
+def fetch_licenses(credential):
   url = 'https://graph.microsoft.com/v1.0/subscribedSkus'
   scope = "https://graph.microsoft.com/.default"
-  licenses = make_graph_call(url, scope)
+  licenses = make_graph_call(url, scope, credential)
 
   for license in licenses:
      license['skuId'] = fetch_product_display_name(license['skuId'])
@@ -113,8 +114,8 @@ def fetch_licenses():
 # AZURE RESOURCES
 
 # Function to make calls to Azure Management API
-def make_management_call(url, scope, pagination=True):
-  access_token = get_access_token(scope)
+def make_management_call(url, scope, credential, pagination=True):
+  access_token = get_access_token(credential, scope)
   if not access_token:
     print("[ERROR]: No access token available.")
     return []
@@ -139,10 +140,10 @@ def make_management_call(url, scope, pagination=True):
   return resources
 
 # Fetch and process users
-def fetch_subscriptions_v2():
+def fetch_subscriptions_v2(credential):
   url = "https://management.azure.com/subscriptions?api-version=2021-04-01"
   scope = "https://management.azure.com/.default"
-  subscriptions_arm_api = make_management_call(url, scope)
+  subscriptions_arm_api = make_management_call(url, scope, credential)
   return [
     {
       'subscriptionId': subscription_int['subscriptionId'],
@@ -153,10 +154,10 @@ def fetch_subscriptions_v2():
   ]
 
 # Fetch resources from ARM API
-def fetch_resources_v2(subscription):
+def fetch_resources_v2(subscription, credential):
   scope = "https://management.azure.com/.default"
   url = f"https://management.azure.com/subscriptions/{subscription}/resources?api-version=2021-04-01"
-  resources = make_management_call(url, scope)
+  resources = make_management_call(url, scope, credential)
   return [
     [
       resource['id'],
@@ -205,10 +206,10 @@ def create_title_workbook(tenant_name):
   current_time = _get_time()
   return f"{tenant_name}-{current_time}"
 
-def fetch_tenant_properties_v2(tenant_id):
+def fetch_tenant_properties_v2(tenant_id, credential):
     url = f"https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{tenant_id}')"
     scope = "https://graph.microsoft.com/.default"
-    access_token = get_access_token(scope)
+    access_token = get_access_token(credential, scope)
 
     headers = {'Authorization': f'Bearer {access_token}'}
 
@@ -221,7 +222,7 @@ def fetch_tenant_properties_v2(tenant_id):
 # CLI COMMANDS
 
 @click.group()
-def commands():
+def cli():
   pass
 
 TYPES = {
@@ -230,16 +231,15 @@ TYPES = {
   "resourcesOnly": "ro"
 }
 
-@click.command()
-@click.argument("type", type=click.Choice(TYPES.keys()))
-@click.option("-tid", "--tenantId", help="Tenant ID that requires the assessment")
-@click.option("-p", "--savePath", help="Save file path in the filesystem")
+@click.command(help='Initialize my_command')
+@click.option("-t", "--mode", type=click.Choice(TYPES.keys()))
+@click.option("-p", "--savePath", prompt="File Path", help="Save file path in the filesystem")
+@click.option("--tenantId", prompt="Tenant ID", help="Tenant ID that requires the assessment")
 
-def run(type, tenantid, savepath):
-  print(tenantid)
-  tenant_id=tenantid
+def run(mode, tenantid, savepath):
   # Initialize InteractiveBrowserCredential
-  credential = InteractiveBrowserCredential(tenant_id=tenant_id)
+  tenant_id=tenantid
+  credential = InteractiveBrowserCredential(tenant_id)
   tenant_data = fetch_tenant_properties_v2(tenant_id)
 
   # Workbook setup
@@ -251,29 +251,29 @@ def run(type, tenantid, savepath):
   licenses_sheet = workbook['Licenses']
   resources_sheet = workbook['Resources']
 
-  if type == "f":
+  if mode == "f":
     # Process users
-    users_data = fetch_users()
+    users_data = fetch_users(credential)
     append_data_to_sheet(users_sheet, users_data)
     total_users = len(users_data)
 
     # Process groups
-    groups_data = fetch_groups()
+    groups_data = fetch_groups(credential)
     append_data_to_sheet(groups_sheet, groups_data)
     total_groups = len(groups_data)
 
     # Process Licenses
-    licenses_data = fetch_licenses()
+    licenses_data = fetch_licenses(credential)
     append_data_to_sheet(licenses_sheet, licenses_data)
     total_groups = len(groups_data)
 
     # Fetch Resources
-    subscriptions_data = fetch_subscriptions_v2()
+    subscriptions_data = fetch_subscriptions_v2(credential)
 
     resources_data = []
 
     for i in range(len(subscriptions_data)):
-      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'])
+      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'], credential)
       for resource in resources:
         resource.append(subscriptions_data[i]['displayName'])
         resources_data.append(resource)
@@ -281,7 +281,7 @@ def run(type, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id)
+    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
@@ -291,14 +291,14 @@ def run(type, tenantid, savepath):
     sheet['C9'] = total_users
     sheet['C10'] = total_groups
 
-  elif type == "eio":
+  elif mode == "eio":
     # Fetch Resources
-    subscriptions_data = fetch_subscriptions_v2()
+    subscriptions_data = fetch_subscriptions_v2(credential)
 
     resources_data = []
 
     for i in range(len(subscriptions_data)):
-      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'])
+      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'], credential)
       for resource in resources:
         resource.append(subscriptions_data[i]['displayName'])
         resources_data.append(resource)
@@ -306,7 +306,7 @@ def run(type, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id)
+    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
@@ -315,14 +315,14 @@ def run(type, tenantid, savepath):
 
     wb_title = create_title_workbook(tenant_data['displayName'])
 
-  elif type == "ro":
+  elif mode == "ro":
     # Fetch Resources
-    subscriptions_data = fetch_subscriptions_v2()
+    subscriptions_data = fetch_subscriptions_v2(credential)
 
     resources_data = []
 
     for i in range(len(subscriptions_data)):
-      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'])
+      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'], credential)
       for resource in resources:
         resource.append(subscriptions_data[i]['displayName'])
         resources_data.append(resource)
@@ -330,7 +330,7 @@ def run(type, tenantid, savepath):
     append_data_to_sheet(resources_sheet, resources_data)
 
     # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenant_id)
+    tenant_data = fetch_tenant_properties_v2(tenant_id, credential)
     sheet = workbook['Overview']
     sheet['C4'] = tenant_data['tenantId']
     sheet['C5'] = tenant_data['displayName']
@@ -352,8 +352,8 @@ def run(type, tenantid, savepath):
 
 # ADD COMMANDS
 
-commands.add_command(run)
+cli.add_command(run)
 
 # Main logic
-if __name__ == "__main__":
-  commands()
+if __name__ == '__main__':
+  cli()
