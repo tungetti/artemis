@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "artemis"
+version = "1.0.0"
+description = "A CLI tool for managing Azure resources and users"
+readme = "README.md"
+authors = [{ name = "Tommaso Maria Ungetti", email = "tommaso.ungetti@outlook.com" }]
+license = { file = "LICENSE" }
+dependencies = [
+    "azure-identity",
+    "azure-mgmt-resource",
+    "requests",
+    "openpyxl",
+    "python-dotenv",
+    "click",
+]
+
+[project.scripts]
+artemis = "artemis.artemis:cli"

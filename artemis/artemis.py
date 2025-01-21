@@ -240,7 +240,7 @@ def run(mode, tenantid, savepath):
   tenant_data = fetch_tenant_properties_v2(tenantid, credential)
 
   # Workbook setup
-  workbook = openpyxl.load_workbook('./source/the_googd_one_v1.xlsx')
+  workbook = openpyxl.load_workbook('../source/the_googd_one_v1.xlsx')
   # overview_sheet = workbook['Overview']
   overview_sheet = workbook['Overview']
   users_sheet = workbook['Users']
