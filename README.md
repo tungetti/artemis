@@ -25,3 +25,11 @@ Artemis is a versatile command-line tool designed to interact with Microsoft Azu
    - `azure-identity`: For Azure authentication.
    - `azure-mgmt-resource`: For interacting with Azure resources.
    - `requests`: For making HTTP requests.
+
+## Installation
+
+1. **Build Locally**:
+   - `python -m build`: The following command will build the package starting from the .toml file
+2. **Install**:
+   - `pip install dist/{file}.whl`: Install locally the script and use it
+   
