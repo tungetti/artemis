@@ -22,7 +22,13 @@ emoji_table = [
   "\U0001F4A5",
   "\U0001F4AB",
   "\U0001F44C",
-  "\U0001F47B"
+  "\U0001F47B",
+  "\U0001F47D",
+  "\U0001F47E",
+  "\U0001F916",
+  "\U0001F596",
+  "\U0001F9DB",
+  "\U0001F9DF"
   ]
 
 # Function to acquire tokens - TESTING CREDENTIAL AS INPUT
