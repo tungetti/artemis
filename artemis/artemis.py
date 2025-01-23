@@ -12,6 +12,7 @@ import csv
 import random
 from importlib.resources import files
 import os
+import colorama
 
 # Load global variables
 db_file = 'artemis.db'

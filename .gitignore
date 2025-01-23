@@ -1,5 +1,4 @@
 __pycache__
-/*.xlsx
 /*.txt
 /dist
 /artemis_cli.egg*

@@ -14,7 +14,6 @@ license = { text = "GPL" }
 dependencies = [
     "click",
     "azure-identity",
-    "azure-mgmt-resource",
     "requests",
     "setuptools",
 ]
