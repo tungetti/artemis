@@ -16,13 +16,13 @@ dependencies = [
     "azure-identity",
     "azure-mgmt-resource",
     "requests",
+    "setuptools",
 ]
 
 [project.scripts]
 artemis = "artemis.artemis:cli"
 
 [tool.setuptools.package-data]
-# Include the database file and other necessary assets
 artemis = ["artemis.db"]
 
 [tool.setuptools]

@@ -10,6 +10,8 @@ from datetime import datetime
 import click
 import csv
 import random
+from importlib.resources import files
+import os
 
 # Load global variables
 db_file = 'artemis.db'
@@ -206,7 +208,7 @@ def create_csv(file_path, data, headers=None):
 
 # Fetch from DB
 def fetch_product_display_name(guid):
-    db_file = "./artemis.db"
+    db_file = files('artemis').joinpath('artemis.db')
     table_name = 'id_to_prodnames'
 
     conn = sqlite3.connect(db_file)
