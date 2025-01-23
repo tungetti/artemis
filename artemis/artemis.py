@@ -4,7 +4,6 @@ The tool helps you retrieve and export information about users, groups, licenses
 '''
 
 from azure.identity import InteractiveBrowserCredential
-from azure.mgmt.resource import ResourceManagementClient
 import requests
 import sqlite3
 from datetime import datetime
@@ -15,7 +14,16 @@ import random
 # Load global variables
 db_file = 'artemis.db'
 table_name = 'id_to_prodnames'
-emoji_table = ["\U0001F920", "\U0001F973", "\U0001F60E", "\U0001F913", "\U0001F4A5", "\U0001F4AB", "\U0001F44C", "\U0001F47B"]
+emoji_table = [
+  "\U0001F920",
+  "\U0001F973",
+  "\U0001F60E",
+  "\U0001F913",
+  "\U0001F4A5",
+  "\U0001F4AB",
+  "\U0001F44C",
+  "\U0001F47B"
+  ]
 
 # Function to acquire tokens - TESTING CREDENTIAL AS INPUT
 def rand_emoji():
