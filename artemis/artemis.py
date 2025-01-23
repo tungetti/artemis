@@ -1,3 +1,8 @@
+'''
+Artemis is a versatile command-line tool designed to interact with Microsoft Azure and Microsoft Entra ID (formerly Azure Active Directory).
+The tool helps you retrieve and export information about users, groups, licenses, resources, and subscriptions from your Azure tenant.
+'''
+
 from azure.identity import InteractiveBrowserCredential
 from azure.mgmt.resource import ResourceManagementClient
 import requests
