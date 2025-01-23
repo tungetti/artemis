@@ -1,17 +1,22 @@
 from azure.identity import InteractiveBrowserCredential
 from azure.mgmt.resource import ResourceManagementClient
 import requests
-import openpyxl
 import sqlite3
 from datetime import datetime
 import click
+import csv
+import random
 
-# Load environment variables
-
+# Load global variables
 db_file = 'artemis.db'
 table_name = 'id_to_prodnames'
+emoji_table = ["\U0001F920", "\U0001F973", "\U0001F60E", "\U0001F913", "\U0001F4A5", "\U0001F4AB", "\U0001F44C", "\U0001F47B"]
 
 # Function to acquire tokens - TESTING CREDENTIAL AS INPUT
+def rand_emoji():
+  emoji = random.choice(emoji_table)
+  return emoji
+
 def get_access_token(credential, scope):
   try:
     token = credential.get_token(scope)
@@ -169,6 +174,17 @@ def append_data_to_sheet(sheet, data):
   for row in data:
     sheet.append(row)
 
+# Create and append data to CSV File
+def create_csv(file_path, data, headers=None):
+  with open(file_path, mode='w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+
+    # Check if headers exists
+    if headers:
+      writer.writerow(headers)
+    
+    writer.writerows(data)
+
 # Fetch from DB
 def fetch_product_display_name(guid):
     db_file = "./artemis.db"
@@ -198,9 +214,9 @@ def _get_time():
   return format_date
 
 
-def create_title_workbook(tenant_name):
+def create_title_workbook(tenant_name, scope="GENERIC"):
   current_time = _get_time()
-  return f"{tenant_name}-{current_time}"
+  return f"{tenant_name}-{scope}-{current_time}"
 
 def fetch_tenant_properties_v2(tenantid, credential):
     url = f"https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{tenantid}')"
@@ -228,40 +244,43 @@ TYPES = {
 }
 
 @click.command(help='Initialize my_command')
-@click.option("-t", "--mode", type=click.Choice(TYPES.keys()), default="full")
+@click.option("-m", "--mode", type=click.Choice(TYPES.keys()), default="full")
 @click.option("-p", "--savePath", prompt="File Path", default=".", help="Save file path in the filesystem")
 @click.option("--tenantId", prompt="Tenant ID", help="Tenant ID that requires the assessment")
 
 def run(mode, tenantid, savepath):
   # Initialize InteractiveBrowserCredential
+  print("Connecting to tenant...")
   global credential
   credential = InteractiveBrowserCredential(tenant_id=tenantid)
   tenant_data = fetch_tenant_properties_v2(tenantid, credential)
 
-  # Workbook setup
-  workbook = openpyxl.load_workbook('./source/the_googd_one_v1.xlsx')
-  # overview_sheet = workbook['Overview']
-  overview_sheet = workbook['Overview']
-  users_sheet = workbook['Users']
-  groups_sheet = workbook['Groups']
-  licenses_sheet = workbook['Licenses']
-  resources_sheet = workbook['Resources']
-
   if mode == "full":
+    # Tenant Identification
+    print(f"{rand_emoji()} Tenant Id: {tenant_data['tenantId']}\n{rand_emoji()} Tenant Name: {tenant_data['displayName']}\n{rand_emoji()} Default Domain Name: {tenant_data['defaultDomainName']}")
     # Process users
     users_data = fetch_users(credential)
-    append_data_to_sheet(users_sheet, users_data)
     total_users = len(users_data)
+    print(f"{rand_emoji()} Found {total_users} Users - Creating CSV File...")
+    users_headers = ['id', 'displayName', 'jobTitle', 'userPrincipalName', 'mail']
+    users_csv_name = create_title_workbook(tenant_data['displayName'], scope="USERS")
+    create_csv(users_csv_name, users_data, users_headers)
 
     # Process groups
     groups_data = fetch_groups(credential)
-    append_data_to_sheet(groups_sheet, groups_data)
     total_groups = len(groups_data)
+    print(f"{rand_emoji()} Found {total_groups} Groups - Creating CSV File...")
+    groups_headers = ['id', 'displayName', 'description', 'onPremisesDomainName', 'onPremisesSyncEnabled', 'membersList']
+    groups_csv_name = create_title_workbook(tenant_data['displayName'], scope="GROUPS")
+    create_csv(groups_csv_name, groups_data, groups_headers)
 
     # Process Licenses
     licenses_data = fetch_licenses(credential)
-    append_data_to_sheet(licenses_sheet, licenses_data)
-    total_groups = len(groups_data)
+    total_licenses = len(licenses_data)
+    print(f"{rand_emoji()} Found {total_licenses} Licenses - Creating CSV File...")
+    licenses_headers = ['accountName', 'skuId', 'appliesTo', 'prepaidUnits', 'consumedUnits']
+    licenses_csv_name = create_title_workbook(tenant_data['displayName'], scope="LICENSES")
+    create_csv(licenses_csv_name, licenses_data, licenses_headers)
 
     # Fetch Resources
     subscriptions_data = fetch_subscriptions_v2(credential)
@@ -273,45 +292,48 @@ def run(mode, tenantid, savepath):
       for resource in resources:
         resource.append(subscriptions_data[i]['displayName'])
         resources_data.append(resource)
-      
-    append_data_to_sheet(resources_sheet, resources_data)
+    
+    total_resources = len(resources_data)
+    print(f"{rand_emoji()} Found {total_resources} Resources - Creating CSV File...")
+    resources_headers = ['id', 'name', 'type', 'location', 'subscription']
+    resources_csv_name = create_title_workbook(tenant_data['displayName'], scope="RESOURCES")
+    create_csv(resources_csv_name, resources_data, resources_headers)
 
-    # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
-    sheet = workbook['Overview']
-    sheet['C4'] = tenant_data['tenantId']
-    sheet['C5'] = tenant_data['displayName']
-    sheet['C6'] = tenant_data['federationBrandName']
-    sheet['C7'] = tenant_data['defaultDomainName']
-
-    sheet['C9'] = total_users
-    sheet['C10'] = total_groups
+    print("...Done!")
 
   elif mode == "entraIdOnly":
-    # Fetch Resources
-    subscriptions_data = fetch_subscriptions_v2(credential)
+    # Tenant Identification
+    print(f"{rand_emoji()} Tenant Id: {tenant_data['tenantId']}\n{rand_emoji()} Tenant Name: {tenant_data['displayName']}\n{rand_emoji()} Default Domain Name: {tenant_data['defaultDomainName']}")
+    # Process users
+    users_data = fetch_users(credential)
+    total_users = len(users_data)
+    print(f"{rand_emoji()} Found {total_users} Users - Creating CSV File...")
+    users_headers = ['id', 'displayName', 'jobTitle', 'userPrincipalName', 'mail']
+    users_csv_name = create_title_workbook(tenant_data['displayName'], scope="USERS")
+    create_csv(users_csv_name, users_data, users_headers)
 
-    resources_data = []
+    # Process groups
+    groups_data = fetch_groups(credential)
+    total_groups = len(groups_data)
+    print(f"{rand_emoji()} Found {total_groups} Groups - Creating CSV File...")
+    groups_headers = ['id', 'displayName', 'description', 'onPremisesDomainName', 'onPremisesSyncEnabled', 'membersList']
+    groups_csv_name = create_title_workbook(tenant_data['displayName'], scope="GROUPS")
+    create_csv(groups_csv_name, groups_data, groups_headers)
 
-    for i in range(len(subscriptions_data)):
-      resources = fetch_resources_v2(subscriptions_data[i]['subscriptionId'], credential)
-      for resource in resources:
-        resource.append(subscriptions_data[i]['displayName'])
-        resources_data.append(resource)
-      
-    append_data_to_sheet(resources_sheet, resources_data)
+    # Process Licenses
+    licenses_data = fetch_licenses(credential)
+    total_licenses = len(licenses_data)
+    print(f"{rand_emoji()} Found {total_licenses} Licenses - Creating CSV File...")
+    licenses_headers = ['accountName', 'skuId', 'appliesTo', 'prepaidUnits', 'consumedUnits']
+    licenses_csv_name = create_title_workbook(tenant_data['displayName'], scope="LICENSES")
+    create_csv(licenses_csv_name, licenses_data, licenses_headers)
 
-    # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
-    sheet = workbook['Overview']
-    sheet['C4'] = tenant_data['tenantId']
-    sheet['C5'] = tenant_data['displayName']
-    sheet['C6'] = tenant_data['federationBrandName']
-    sheet['C7'] = tenant_data['defaultDomainName']
-
-    wb_title = create_title_workbook(tenant_data['displayName'])
+    print("...Done!")
 
   elif mode == "resourcesOnly":
+    # Tenant Identification
+    print(f"{rand_emoji()} Tenant Id: {tenant_data['tenantId']}\n{rand_emoji()} Tenant Name: {tenant_data['displayName']}\n{rand_emoji()} Default Domain Name: {tenant_data['defaultDomainName']}")
+
     # Fetch Resources
     subscriptions_data = fetch_subscriptions_v2(credential)
 
@@ -322,29 +344,14 @@ def run(mode, tenantid, savepath):
       for resource in resources:
         resource.append(subscriptions_data[i]['displayName'])
         resources_data.append(resource)
-      
-    append_data_to_sheet(resources_sheet, resources_data)
+    
+    total_resources = len(resources_data)
+    print(f"{rand_emoji()} Found {total_resources} Resources - Creating CSV File...")
+    resources_headers = ['id', 'name', 'type', 'location', 'subscription']
+    resources_csv_name = create_title_workbook(tenant_data['displayName'], scope="RESOURCES")
+    create_csv(resources_csv_name, resources_data, resources_headers)
 
-    # Fetch Tenant Informations
-    tenant_data = fetch_tenant_properties_v2(tenantid, credential)
-    sheet = workbook['Overview']
-    sheet['C4'] = tenant_data['tenantId']
-    sheet['C5'] = tenant_data['displayName']
-    sheet['C6'] = tenant_data['federationBrandName']
-    sheet['C7'] = tenant_data['defaultDomainName']
-
-  # Build output file name
-  wb_title = create_title_workbook(tenant_data['displayName'])
-
-  # Save workbook
-
-  if savepath is True:
-    try:
-      workbook.save(f"{savepath}/{wb_title}.xlsx")
-    except Exception as e:
-      print(f"[ERROR]: {e}")
-  else:
-    workbook.save(f"{wb_title}.xlsx")
+    print("...Done!")
 
 # ADD COMMANDS
 

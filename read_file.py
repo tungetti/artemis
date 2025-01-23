@@ -1,7 +1,7 @@
 import openpyxl
 
 # Load the workbook
-workbook = openpyxl.load_workbook('Pseudonymph-17012025-1358.xlsx')
+workbook = openpyxl.load_workbook('./Pseudonymph-GENERIC-23012025-1439.xlsx')
 
 # Function to print the content of a sheet
 def print_sheet_content(sheet):
