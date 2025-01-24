@@ -31,5 +31,5 @@ Artemis is a versatile command-line tool designed to interact with Microsoft Azu
 1. **Build Locally**:
    - `python -m build`: The following command will build the package starting from the .toml file
 2. **Install**:
-   - `pip install path/to/dist/{file}.whl`: Install locally the script and use it
+   - `pip install artemis-cli`: Install the script and use it
    
