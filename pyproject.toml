@@ -16,6 +16,7 @@ dependencies = [
     "azure-identity",
     "requests",
     "setuptools",
+    "colorama"
 ]
 
 [project.scripts]
