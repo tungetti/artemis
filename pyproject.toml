@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "artemis-cli"
-version = "1.0.0"
+version = "1.0.1"
 description = "Artemis is a versatile command-line tool designed to interact with Microsoft Azure and Microsoft Entra ID."
 authors = [
     { name = "Tommaso Maria Ungetti", email = "tommaso.ungetti@outlook.com" }
